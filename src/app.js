@@ -1,9 +1,21 @@
 const express = require("express");
 const connectDB = require("./config/database");
-const User = require("./models/user");
+
 const app = express();
 
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
+
 app.use(express.json());
+app.use(cookieParser());
+
+const authRouter = require("./routes/auth");
+const profileRouter = require("./routes/profile");
+const requestRouter = require("./routes/request");
+
+app.use("/", authRouter);
+app.use("/", profileRouter);
+app.use("/", requestRouter);
 
 // const { adminAuth, userAuth } = require("./middlewares/auth");
 
@@ -27,17 +39,13 @@ app.use(express.json());
 //   res.send("Deleted a user");
 // });
 
-app.post("/signup", async (req, res) => {
-  //Creating a new Instance of the user model
-  const user = new User(req.body);
 
-  try {
-    await user.save();
-    res.send("User added successfully!");
-  } catch (error) {
-    res.status(400).send("Error saving the user:" + error.message);
-  }
-});
+
+
+
+
+
+
 
 // Get user by email
 app.get("/user", async (req, res) => {
@@ -84,12 +92,32 @@ app.delete("/user", async (req, res) => {
 });
 
 // update data of the user
-app.patch("/user", async (req, res) => {
-  const userId = req.body.userId;
+app.patch("/user/:userId", async (req, res) => {
+  const userId = req.params?.userId;
   const data = req.body;
+
   try {
+    const ALLOWED_UPDATES = [
+      "userId",
+      "photoUrl",
+      "about",
+      "gender",
+      "age",
+      "skills",
+    ];
+
+    const isUpdateAllowed = Object.keys(data).every((k) =>
+      ALLOWED_UPDATES.includes(k)
+    );
+
+    if (!isUpdateAllowed) {
+      throw new Error("Update not allowed");
+    }
+    if (data?.skills.length > 10) {
+      throw new Error("Skills cannot be more than 10");
+    }
     await User.findByIdAndUpdate({ _id: userId }, data, {
-        runValidators: true,
+      runValidators: true,
     });
     res.send("User updated successfully");
   } catch (error) {
